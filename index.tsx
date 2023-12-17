@@ -207,7 +207,7 @@ export default definePlugin({
         });
     },
 
-    applyRegexes(m) {
+    applyRegexes(m, fromcache) {
         if (settings.store.ignoreBots && m.author.bot) return;
 
         if (regexes.some(r => r != "" && safeMatchesRegex(m.content, r))) {
@@ -215,7 +215,8 @@ export default definePlugin({
 
             if (m.author.id != this.me.id) {
                 this.addToLog(m);
-                Notify(m, Object.values(GuildStore?.getGuilds())?.find(g => g.id === m.guild_id), ChannelStore?.getChannel(m.channel_id));
+
+                if (fromcache != true) Notify(m, Object.values(GuildStore?.getGuilds())?.find(g => g.id === m.guild_id), ChannelStore?.getChannel(m.channel_id));
             }
         }
     },
@@ -301,10 +302,10 @@ export default definePlugin({
 
     modify(e) {
         if (e.type == "MESSAGE_CREATE") {
-            this.applyRegexes(e.message);
+            this.applyRegexes(e.message, false);
         } else if (e.type == "LOAD_MESSAGES_SUCCESS") {
             for (let msg = 0; msg < e.messages.length; ++msg) {
-                this.applyRegexes(e.messages[msg]);
+                this.applyRegexes(e.messages[msg], true);
             }
         }
         return e;

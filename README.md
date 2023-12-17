@@ -5,6 +5,7 @@ Vencord third-party plugin to "ping" the user if a message matches custom regula
 # How to Install
 Run this command into your Vencord Folder
 ```bash
+cd src/userplugins
 git clone https://github.com/Zv-yz/vencord-KeywordNotify
 pnpm build
 ```

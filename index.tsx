@@ -10,19 +10,22 @@ import { definePluginSettings } from "@api/Settings";
 import { DeleteIcon } from "@components/Icons";
 import { Devs } from "@utils/constants";
 import { Flex } from "@components/Flex";
-import { TextInput, useState, Forms, Button, UserStore, UserUtils, TabBar, ChannelStore, SelectedChannelStore  } from "@webpack/common";
+import { TextInput, useState, GuildStore, Forms, Button, UserStore, UserUtils, TabBar, NavigationRouter, ChannelStore, SelectedChannelStore } from "@webpack/common";
 import { useForceUpdater } from "@utils/react";
-import { findByCodeLazy, findByPropsLazy, mapMangledModuleLazy, filters } from "@webpack";
+import { findByCodeLazy, findByPropsLazy } from "@webpack";
 import "./style.css";
 
 let regexes = [];
+let TypeToName = {
+    1: "Direct Channel",
+    3: "Group DM",
+};
 
 const MenuHeader = findByCodeLazy("useInDesktopNotificationCenterExperiment)(");
 const Popout = findByPropsLazy("ItemsPopout");
 const recentMentionsPopoutClass = findByPropsLazy("recentMentionsPopout");
 
 const { createMessageRecord } = findByPropsLazy("createMessageRecord", "updateMessageRecord");
-
 
 async function setRegexes(idx: number, reg: string) {
     regexes[idx] = reg;
@@ -39,6 +42,26 @@ async function addRegex(updater: () => void) {
     regexes.push("");
     await DataStore.set("KeywordNotify_rules", regexes);
     updater();
+}
+
+function NavigateToChannel(guildId: string | null, channelId: string) {
+    if (!ChannelStore.hasChannel(channelId)) return;
+    NavigationRouter.transitionTo(`/channels/${guildId ?? "@me"}/${channelId}`);
+}
+
+function Notify(m, guild, channel) {
+    let username = `${m.author.username}${m.author.discriminator !== "0" ? `#${m.author.discriminator}` : ""}`;
+    let Guild = guild?.name;
+    let Channel = channel?.name != "" ? channel.name : TypeToName[channel.type];
+
+    let n = new Notification('[KeywordTracker] Detected message!', {
+        silent: true,
+        body: `Username: ${username}\nID: ${m.author.id}\nContent: ${m.content}\n${Guild ? `Guild: ${Guild}\n` : ""}Channel: ${Channel}`,
+        icon: `https://${window.GLOBAL_ENV.CDN_HOST}/avatars/${m.author.id}/${m.author.avatar}`
+    });
+    n.onclick = function () {
+        NavigateToChannel(m.guild_id, m.channel_id);
+    };
 }
 
 function safeMatchesRegex(s: string, r: string) {
@@ -81,6 +104,12 @@ const settings = definePluginSettings({
         default: true
     },
 
+    mentionSelf: {
+        type: OptionType.BOOLEAN,
+        description: "Mentions yourself whens keywords trigger",
+        default: false
+    },
+
     keywords: {
         type: OptionType.COMPONENT,
         description: "",
@@ -93,14 +122,14 @@ const settings = definePluginSettings({
                     let valuesCopy = [...values];
                     valuesCopy[i] = v;
                     setValues(valuesCopy);
-                }
+                };
 
                 return (
                     <>
                         <Forms.FormTitle tag="h4">Keyword Regex {i + 1}</Forms.FormTitle>
 
                         <Flex flexDirection="row">
-                            <div style={{flexGrow: 1}}>
+                            <div style={{ flexGrow: 1 }}>
                                 <TextInput
                                     placeholder="example|regex"
                                     spellCheck={false}
@@ -118,7 +147,7 @@ const settings = definePluginSettings({
                             </Button>
                         </Flex>
                     </>
-                )
+                );
             });
 
             return (
@@ -138,12 +167,12 @@ export default definePlugin({
     settings,
     patches: [
         {
-    	    find: "}_dispatch(",
-    	    replacement: {
+            find: "}_dispatch(",
+            replacement: {
                 match: /}_dispatch\((\i),\i\){/,
                 replace: "$&$1=$self.modify($1);"
-    	    }
-    	},
+            }
+        },
         {
             find: "Messages.UNREADS_TAB_LABEL}",
             replacement: {
@@ -170,7 +199,7 @@ export default definePlugin({
     async start() {
         regexes = await DataStore.get("KeywordNotify_rules") ?? [];
         this.me = await UserUtils.getUser(UserStore.getCurrentUser().id);
-        this.onUpdate = ()=>null;
+        this.onUpdate = () => null;
         this.keywordLog = [];
 
         (await DataStore.get("KeywordNotify_log") ?? []).map((e) => JSON.parse(e)).forEach((e) => {
@@ -179,14 +208,15 @@ export default definePlugin({
     },
 
     applyRegexes(m) {
-        if (settings.store.ignoreBots && m.author.bot)
-            return;
+        if (settings.store.ignoreBots && m.author.bot) return;
 
         if (regexes.some(r => r != "" && safeMatchesRegex(m.content, r))) {
-            m.mentions.push(this.me);
+            if (settings.store.mentionSelf) m.mentions.push(this.me);
 
-            if (m.author.id != this.me.id)
+            if (m.author.id != this.me.id) {
                 this.addToLog(m);
+                Notify(m, Object.values(GuildStore?.getGuilds())?.find(g => g.id === m.guild_id), ChannelStore?.getChannel(m.channel_id));
+            }
         }
     },
 
@@ -215,7 +245,7 @@ export default definePlugin({
 
     tryKeywordMenu(setTab, onJump, closePopout) {
         let header = (
-            <MenuHeader tab={5} setTab={setTab} closePopout={closePopout} badgeState={{badgeForYou: false}}/>
+            <MenuHeader tab={5} setTab={setTab} closePopout={closePopout} badgeState={{ badgeForYou: false }} />
         );
 
         let channel = ChannelStore.getChannel(SelectedChannelStore.getChannelId());
@@ -259,11 +289,11 @@ export default definePlugin({
                     renderMessage={messageRender}
                     channel={channel}
                     onJump={onJump}
-                    onFetch={()=>null}
+                    onFetch={() => null}
                     onCloseMessage={onDelete}
-                    loadMore={()=>null}
+                    loadMore={() => null}
                     messages={keywordLog}
-                    renderEmptyState={()=>null}
+                    renderEmptyState={() => null}
                 />
             </>
         );

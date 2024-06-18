@@ -23,7 +23,7 @@ let currentUser: User;
 let keywordLog: Array<any> = [];
 
 const MenuHeader = findByCodeLazy(".useInDesktopNotificationCenterExperiment)()?");
-const Popout = findByPropsLazy("ItemsPopout");
+const Popout = findByCodeLazy("let{analyticsName:");
 const recentMentionsPopoutClass = findByPropsLazy("recentMentionsPopout");
 
 const { createMessageRecord } = findByPropsLazy("createMessageRecord", "updateMessageRecord");
@@ -119,7 +119,7 @@ function Collapsible({ title, children }) {
                 size={Button.Sizes.ICON}
                 className="keywordnotify-collapsible">
                 <div style={{ display: "flex", alignItems: "center" }}>
-                    <div style={{ marginLeft: "auto", color: "var(--text-muted)" }}>{isOpen ? "▲" : "▼"}</div>
+                    <div style={{ marginLeft: "auto", color: "var(--text-muted)", paddingRight: "5px" }}>{isOpen ? "▼" : "▶"}</div>
                     <Forms.FormTitle tag="h4">{title}</Forms.FormTitle>
                 </div>
             </Button>
@@ -446,7 +446,7 @@ export default definePlugin({
 
         return (
             <>
-                <Popout.default
+                <Popout
                     className={recentMentionsPopoutClass.recentMentionsPopout}
                     renderHeader={() => header}
                     renderMessage={messageRender}
